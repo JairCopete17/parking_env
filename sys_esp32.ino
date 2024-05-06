@@ -1,20 +1,12 @@
-/////////////////////////
-/////// Entradas ////////
 #define NR_OF_READERS 4
 #define RST_PIN       22
 #define SS_1_PIN      21
 #define SS_2_PIN      5
+#define SS_3_PIN      16
+#define SS_4_PIN      17
 #define SERVO_IN_PIN  4 
 #define SERVO_OUT_PIN 2
-/////////////////////////
-//// Parking Scooter ////
-#define SS_3_PIN      16
-/////////////////////////
-///// Parking Bici //////
-#define SS_4_PIN      17
 #define FIN_CAR_PIN   14
-//#define ELECTOIMAN  A
-/////////////////////////
 
 #include <SPI.h>
 #include <MFRC522.h>
@@ -41,6 +33,8 @@ byte Usuario1[4]= {0x0C, 0x51, 0x8B, 0x17} ;    // UID de llavero
 byte Usuario2[4]= {0xB4, 0x56, 0xC9, 0xE7} ;    // UID de carnet de la universidad Santiago
 byte Usuario3[4]= {0xB2, 0xA9, 0xE6, 0xE9} ;    // UID de carnet de la universidad Jair
 
+long randomNumber = random(1,2);
+
 void setup() {
   Serial.begin(9600);
   SPI.begin();
@@ -62,33 +56,24 @@ void setup() {
 
   pinMode(33, OUTPUT); // LED BICI
   pinMode(32, OUTPUT); // LED SCOOTER
+  
+  pinMode(25, OUTPUT); // LED ROJO
+  pinMode(26, OUTPUT); // LED VERDE
+  pinMode(27, OUTPUT); // LED AMARILLO
+  
   Serial.println("Inicio del registro");
 }
 
 void loop() {
   //Calculamos la distancia en cm
   dist = 0.01723 * readUltrasonicDistance(13, 12);
-  if (dist <= 3) {                            //Mostramos la distancia
-    Serial.println("Scooter parqueada");
-    pinza.write(finalposPinza); 
-    digitalWrite(32, HIGH);
-  } else {
-    pinza.write(initposPinza);
-    digitalWrite(32, LOW);
-  }
-  
-  int park_bici = digitalRead(FIN_CAR_PIN);
-  if (!park_bici) {
-    Serial.println("Bicicleta parqueada");
-    digitalWrite(33, HIGH);
-  } else digitalWrite(33, LOW);
   
   for (uint8_t reader = 0; reader < NR_OF_READERS; reader++) {
     if (mfrc522[reader].PICC_IsNewCardPresent() && mfrc522[reader].PICC_ReadCardSerial()) {
-      Serial.print(F("Reader "));
+      Serial.print(F("Reader "));   
       Serial.print(reader);
       Serial.print(F(": Card UID:"));
-      dump_byte_array(mfrc522[reader].uid.uidByte, mfrc522[reader].uid.size);
+      dumpByteArray(mfrc522[reader].uid.uidByte, mfrc522[reader].uid.size);
       Serial.println();
 
       for (byte i = 0; i < mfrc522[reader].uid.size; i++) {
@@ -98,8 +83,11 @@ void loop() {
       if (reader == 0) {
         Serial.println("LECTOR DE SALIDA DETECTADO");
         servoOut.write(finalposOut);
+        digitalWrite(25, LOW); delay(50);       // LED ROJO
+        digitalWrite(27, LOW); delay(50);       // LED AMARILLO
+        digitalWrite(26, LOW); delay(50);       // LED VERDE
         delay(2500);
-        servoOut.write(initposOut);
+        servoOut.write(initposOut);       
       }
       
       if (reader == 1) {
@@ -107,14 +95,37 @@ void loop() {
         servoIn.write(finalposIn);
         delay(2500);
         servoIn.write(initposIn);
+
+        delay(3000);
+        digitalWrite(25, HIGH); delay(50);       // LED ROJO
+        delay(1000); 
+        digitalWrite(27, HIGH); delay(50);       // LED AMARILLO
+        digitalWrite(26, HIGH); delay(50);       // LED VERDE
       }
 
       if (reader == 2) {
         Serial.println("LECTOR DE SCOOTER DETECTADO");
+        ///////////////////////////////////////////
+        int park_bici = digitalRead(FIN_CAR_PIN);
+        if (!park_bici) {
+          Serial.println("Bicicleta parqueada");
+          digitalWrite(33, HIGH);
+        } else digitalWrite(33, LOW);
+        ///////////////////////////////////////////
       }
 
       if (reader == 3) {
         Serial.println("LECTOR DE BICI DETECTADO");
+        ///////////////////////////////////////////
+        if (dist <= 3) {
+          Serial.println("Scooter parqueada");
+          pinza.write(finalposPinza); 
+          digitalWrite(32, HIGH);
+        } else {
+          pinza.write(initposPinza);
+          digitalWrite(32, LOW);
+        } 
+        ///////////////////////////////////////////
       }
       
       mfrc522[reader].PICC_HaltA();
@@ -123,7 +134,7 @@ void loop() {
   } //for(uint8_t reader
 }
 
-void dump_byte_array(byte *buffer, byte bufferSize) {
+void dumpByteArray(byte *buffer, byte bufferSize) {
   for (byte i = 0; i < bufferSize; i++) {
     Serial.print(buffer[i] < 0x10 ? " 0" : " ");
     Serial.print(buffer[i], HEX);
