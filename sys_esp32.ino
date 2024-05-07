@@ -1,23 +1,33 @@
-#define NR_OF_READERS 4
-#define RST_PIN       22
-#define SS_1_PIN      21
-#define SS_2_PIN      5
-#define SS_3_PIN      16
-#define SS_4_PIN      17
-#define SERVO_IN_PIN  4 
-#define SERVO_OUT_PIN 2
-#define FIN_CAR_PIN   14
-
 #include <SPI.h>
 #include <MFRC522.h>
 #include <ESP32Servo.h>
 
+const int NR_OF_READERS = 4;
+const int RST_PIN = 22;
+const int SS_1_PIN = 21;
+const int SS_2_PIN = 5;
+const int SS_3_PIN = 16;
+const int SS_4_PIN = 17;
 byte ssPins[] = {SS_1_PIN, SS_2_PIN, SS_3_PIN, SS_4_PIN};
-
 MFRC522 mfrc522[NR_OF_READERS];
+
+// sda sck 1 trama = voltage + osciloscopio
+// sda sck 2 trama = voltage + osciloscopio
+// sda sck 3 trama = voltage + osciloscopio
+
+const int SERVO_IN_PIN = 4;
+const int SERVO_OUT_PIN = 2;
+const int PINZA_SCOO_PIN = 15;
+const int PINZA_BICI_PIN = 14; // !!!
 Servo servoIn;
 Servo servoOut;
 Servo pinza;
+Servo pinzaBici;
+
+const int FIN_CAR_PIN = 35;     // !!!
+const int LED_ROJO_PIN = 25;
+const int LED_VERDE_PIN = 26;
+const int LED_AMARILLO_PIN = 27; // !!!
 
 int cnt = 0;
 int dist = 0;
@@ -26,14 +36,11 @@ int initposIn = 140;
 int finalposIn = 35;
 int initposOut = 90;
 int finalposOut = 0;
-int initposPinza = 140;
-int finalposPinza = 35;
+int initposPinzaScooter = 140;
+int finalposPinzaScooter = 35;
+int initposPinzaBici = 140;
+int finalposPinzaBici = 35;
 byte LecturaUID[4];
-byte Usuario1[4]= {0x0C, 0x51, 0x8B, 0x17} ;    // UID de llavero
-byte Usuario2[4]= {0xB4, 0x56, 0xC9, 0xE7} ;    // UID de carnet de la universidad Santiago
-byte Usuario3[4]= {0xB2, 0xA9, 0xE6, 0xE9} ;    // UID de carnet de la universidad Jair
-
-long randomNumber = random(1,2);
 
 void setup() {
   Serial.begin(9600);
@@ -51,15 +58,17 @@ void setup() {
   servoIn.write(initposIn);
   servoOut.attach(SERVO_OUT_PIN, 500, 2400);
   servoOut.write(initposOut);
-  pinza.attach(15, 500, 2400);
-  pinza.write(initposPinza);
-
+  pinza.attach(PINZA_SCOO_PIN, 500, 2400);
+  pinza.write(initposPinzaScooter);
+  pinzaBici.attach(PINZA_BICI_PIN, 500, 2400);
+  pinzaBici.write(initposPinzaBici);
+  
   pinMode(33, OUTPUT); // LED BICI
   pinMode(32, OUTPUT); // LED SCOOTER
   
-  pinMode(25, OUTPUT); // LED ROJO
-  pinMode(26, OUTPUT); // LED VERDE
-  pinMode(27, OUTPUT); // LED AMARILLO
+  pinMode(LED_ROJO_PIN, OUTPUT); // LED ROJO
+  pinMode(LED_VERDE_PIN, OUTPUT); // LED VERDE
+  pinMode(LED_AMARILLO_PIN, OUTPUT); // LED AMARILLO
   
   Serial.println("Inicio del registro");
 }
@@ -99,7 +108,7 @@ void loop() {
         delay(3000);
         digitalWrite(25, HIGH); delay(50);       // LED ROJO
         delay(1000); 
-        digitalWrite(27, HIGH); delay(50);       // LED AMARILLO
+        digitalWrite(37, HIGH); delay(50);       // LED AMARILLO
         digitalWrite(26, HIGH); delay(50);       // LED VERDE
       }
 
@@ -109,8 +118,12 @@ void loop() {
         int park_bici = digitalRead(FIN_CAR_PIN);
         if (!park_bici) {
           Serial.println("Bicicleta parqueada");
+          pinzaBici.write(finalposPinzaBici);
           digitalWrite(33, HIGH);
-        } else digitalWrite(33, LOW);
+        } else {
+          pinzaBici.write(initposPinzaBici);
+          digitalWrite(33, LOW);
+        }
         ///////////////////////////////////////////
       }
 
@@ -119,10 +132,10 @@ void loop() {
         ///////////////////////////////////////////
         if (dist <= 3) {
           Serial.println("Scooter parqueada");
-          pinza.write(finalposPinza); 
+          pinza.write(finalposPinzaScooter); 
           digitalWrite(32, HIGH);
         } else {
-          pinza.write(initposPinza);
+          pinza.write(initposPinzaScooter);
           digitalWrite(32, LOW);
         } 
         ///////////////////////////////////////////
